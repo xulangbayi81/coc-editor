@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0e1410">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>部落阵型编辑器</title>
+<style>
+:root{
+  --bg:#0e1410; --panel:#161d16; --line:#263326; --text:#d7e4d7; --dim:#7f9a7f;
+  --gold:#f2b544; --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;
+  padding-top:var(--safe-t);padding-bottom:var(--safe-b);
+}
+header{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 10px;background:#121a12;border-bottom:1px solid var(--line);
+  flex:0 0 auto;
+}
+.logo{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-right:auto}
+header button{
+  font-family:inherit;font-size:12px;padding:7px 11px;border-radius:7px;
+  background:#22301f;border:1px solid #33452f;color:#cfe0cf;cursor:pointer;
+}
+header button:active{background:#2e412e;transform:scale(.96)}
+header button.primary{background:#3a3018;border-color:#6b5a22;color:var(--gold)}
+#boardWrap{
+  flex:0 0 auto;display:flex;justify-content:center;align-items:center;
+  padding:8px;background:radial-gradient(circle at 50% 0%,#18231a 0%,#0e1410 75%);
+}
+canvas{
+  display:block;border-radius:10px;touch-action:none;
+  box-shadow:0 0 0 2px #2c3a2c,0 10px 30px rgba(0,0,0,.6);
+}
+#panel{
+  flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;padding:6px 10px 10px;
+}
+.gtitle{font-size:10px;color:var(--dim);letter-spacing:2px;margin:10px 2px 6px;font-weight:600}
+.palette{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+@media(min-width:430px){.palette{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:620px){.palette{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.item{
+  display:flex;align-items:center;gap:5px;min-height:42px;
+  background:#1e281e;border:1px solid #2c3a2c;color:#cfe0cf;
+  border-radius:8px;padding:5px 7px;font-size:11.5px;cursor:pointer;
+  font-family:inherit;text-align:left;overflow:hidden;
+}
+.item:active{background:#253225;transform:scale(.97)}
+.item.active{border-color:var(--gold);background:#2e2a18;color:var(--gold)}
+.swatch{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+.item .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bar{
+  flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;
+  background:#121a12;border-top:1px solid var(--line);
+}
+#bar button{
+  flex:1;font-family:inherit;font-size:12.5px;padding:11px 4px;border-radius:8px;
+  background:#22301f;border:1px solid #33452f;color:#cfe0cf;cursor:pointer;
+}
+#bar button:active{background:#2e412e}
+#bar button.on{background:#5a2b2b;border-color:#8a4040;color:#ffb3b3}
+#bar button.warn{color:#e08080;border-color:#4a2a2a}
+#drawer{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:#141c14;border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;padding:14px 14px calc(14px + var(--safe-b));
+  transform:translateY(105%);transition:transform .22s ease;
+  box-shadow:0 -10px 30px rgba(0,0,0,.6);
+}
+#drawer.open{transform:translateY(0)}
+#drawer h3{margin:0 0 8px;font-size:12px;color:var(--gold);letter-spacing:1px}
+#code{
+  width:100%;height:96px;background:#0b100b;border:1px solid #2c3a2c;color:#9fd09f;
+  border-radius:8px;padding:9px;font-size:11px;line-height:1.5;
+  font-family:ui-monospace,Menlo,Consolas,monospace;resize:none;
+  -webkit-user-select:text;user-select:text;
+}
+#drawer .row{display:flex;gap:8px;margin-top:10px}
+#drawer .row button{
+  flex:1;font-family:inherit;font-size:13px;padding:12px 6px;border-radius:9px;
+  background:#243324;border:1px solid #354a35;color:#cfe0cf;
+}
+#drawer .row button.primary{background:#3a3018;border-color:#6b5a22;color:var(--gold)}
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:19;opacity:0;pointer-events:none;transition:.2s}
+#mask.show{opacity:1;pointer-events:auto}
+#toast{
+  position:fixed;left:50%;top:14%;transform:translate(-50%,-10px);
+  background:rgba(20,28,20,.96);border:1px solid #3a4a3a;color:var(--gold);
+  padding:9px 16px;border-radius:20px;font-size:12.5px;z-index:30;
+  opacity:0;pointer-events:none;transition:.2s;white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">部落阵型</span>
+  <button id="btnUndo">撤销</button>
+  <button id="btnImport">导入</button>
+  <button id="btnCopy" class="primary">复制码</button>
+</header>
+
+<div id="boardWrap"><canvas id="board"></canvas></div>
+
+<div id="panel"><div id="palette"></div></div>
+
+<div id="bar">
+  <button id="btnErase">橡皮擦</button>
+  <button id="btnSample">示例阵型</button>
+  <button id="btnClear" class="warn">清空</button>
+</div>
+
+<div id="mask"></div>
+<div id="drawer">
+  <h3 id="drawerTitle">阵型码</h3>
+  <textarea id="code" spellcheck="false" placeholder="粘贴阵型码后点「导入」"></textarea>
+  <div class="row">
+    <button id="btnCloseDrawer">关闭</button>
+    <button id="btnDoImport" class="primary">导入</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+const TYPES = {
+  cannon:  {n:'加农炮',      s:'炮',   w:3,h:3, c:'#9aa5a8'},
+  archer:  {n:'箭塔',        s:'箭塔', w:3,h:3, c:'#17a589'},
+  mortar:  {n:'迫击炮',      s:'迫击', w:3,h:3, c:'#7f8c8d'},
+  airdef:  {n:'防空火箭',    s:'防空', w:3,h:3, c:'#27ae60'},
+  wizard:  {n:'法师塔',      s:'法塔', w:3,h:3, c:'#2980b9'},
+  sweeper: {n:'空气炮',      s:'空炮', w:3,h:3, c:'#5dade2'},
+  tesla:   {n:'特斯拉电磁塔',s:'特',   w:2,h:2, c:'#9b59b6'},
+  bomb:    {n:'炸弹塔',      s:'炸塔', w:3,h:3, c:'#d35400'},
+  xbow:    {n:'X连弩',       s:'连弩', w:3,h:3, c:'#34495e'},
+  inferno: {n:'地狱之塔',    s:'地狱', w:3,h:3, c:'#e67e22'},
+  eagle:   {n:'鹰之火炮',    s:'鹰炮', w:4,h:4, c:'#c0392b'},
+  monolith:{n:'单人石像',    s:'石像', w:3,h:3, c:'#566573'},
+  spellt:  {n:'法术塔',      s:'术塔', w:2,h:2, c:'#1abc9c'},
+  goldmine:{n:'金矿',        s:'金矿', w:3,h:3, c:'#d4ac0d'},
+  elixcoll:{n:'圣水收集器',  s:'圣水', w:3,h:3, c:'#af7ac5'},
+  drill:   {n:'黑油钻井',    s:'油井', w:3,h:3, c:'#5d6d7e'},
+  goldstor:{n:'储金罐',      s:'金库', w:3,h:3, c:'#b7950b'},
+  elixstor:{n:'圣水瓶',      s:'圣瓶', w:3,h:3, c:'#8e44ad'},
+  darkstor:{n:'黑油罐',      s:'油罐', w:3,h:3, c:'#2c3e50'},
+  barracks:{n:'兵营',        s:'兵营', w:3,h:3, c:'#7d6608'},
+  train:   {n:'训练营',      s:'训练', w:3,h:3, c:'#a04000'},
+  darktrain:{n:'暗黑训练营', s:'黑训', w:3,h:3, c:'#6e2c00'},
+  spellfac:{n:'法术工厂',    s:'法术', w:3,h:3, c:'#512e5f'},
+  darkspell:{n:'暗黑法术工厂',s:'黑法',w:3,h:3, c:'#4a235a'},
+  lab:     {n:'实验室',      s:'实验', w:3,h:3, c:'#1f618d'},
+  smith:   {n:'铁匠铺',      s:'铁匠', w:3,h:3, c:'#7b241c'},
+  workshop:{n:'攻城工坊',    s:'工坊', w:3,h:3, c:'#424949'},
+  th:      {n:'大本营',      s:'大本', w:4,h:4, c:'#b9770e'},
+  cc:      {n:'部落城堡',    s:'城堡', w:4,h:4, c:'#7d3c98'},
+  builder: {n:'工人小屋',    s:'工人', w:2,h:2, c:'#aab7b8'},
+  wall:    {n:'城墙',        s:'',     w:1,h:1, c:'#8d6e63'},
+};
+
+const KEYS = Object.keys(TYPES);
+const IDX  = {};
+KEYS.forEach((k,i)=>IDX[k]=i);
+
+const GROUPS = [
+  ['防御设施',['cannon','archer','mortar','airdef','wizard','sweeper','tesla',
+               'bomb','xbow','inferno','eagle','monolith','spellt']],
+  ['资源建筑',['goldmine','elixcoll','drill','goldstor','elixstor','darkstor']],
+  ['军事建筑',['barracks','train','darktrain','spellfac','darkspell','lab','smith','workshop']],
+  ['核心 / 其他',['th','cc','builder','wall']],
+];
+
+const GRID  = 44;
+let   CELL  = 12;
+let   SIZE  = GRID * CELL;
+
+const canvas = document.getElementById('board');
+const ctx    = canvas.getContext('2d');
+const dpr    = Math.min(window.devicePixelRatio || 1, 3);
+
+function fitCanvas(){
+  const wrap   = document.getElementById('boardWrap');
+  const availW = wrap.clientWidth  - 18;
+  const availH = window.innerHeight * 0.52;
+
+  CELL = Math.max(5, Math.floor(Math.min(availW, availH) / GRID));
+  SIZE = CELL * GRID;
+
+  canvas.width  = SIZE * dpr;
+  canvas.height = SIZE * dpr;
+  canvas.style.width  = SIZE + 'px';
+  canvas.style.height = SIZE + 'px';
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+
+let layout   = [];
+let pending  = null;
+let eraseMode= false;
+let selected = null;
+let drag     = null;
+let painting = false;
+let hover    = {x:-1,y:-1};
+const history = [];
+
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+
+function roundRect(x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,   x+w,y+h, r);
+  ctx.arcTo(x+w,y+h, x,  y+h, r);
+  ctx.arcTo(x,  y+h, x,  y,   r);
+  ctx.arcTo(x,  y,   x+w,y,   r);
+  ctx.closePath();
+}
+
+function anchor(type,cx,cy){
+  const t = TYPES[type];
+  return {
+    x: clamp(cx - Math.floor(t.w/2), 0, GRID - t.w),
+    y: clamp(cy - Math.floor(t.h/2), 0, GRID - t.h),
+  };
+}
+
+function overlaps(type,x,y,ignore){
+  const a = TYPES[type];
+  for(const b of layout){
+    if(b === ignore) continue;
+    const t2 = TYPES[b.t];
+    if(x < b.x+t2.w && x+a.w > b.x && y < b.y+t2.h && y+a.h > b.y) return true;
+  }
+  return false;
+}
+
+function hitTest(cx,cy){
+  for(let i=layout.length-1;i>=0;i--){
+    const b = layout[i], t = TYPES[b.t];
+    if(cx>=b.x && cx<b.x+t.w && cy>=b.y && cy<b.y+t.h) return b;
+  }
+  return null;
+}
+
+function haptic(ms){
+  if(navigator.vibrate) { try{ navigator.vibrate(ms||12); }catch(e){} }
+}
+
+function pushHistory(){
+  history.push(JSON.stringify(layout));
+  if(history.length > 60) history.shift();
+  document.getElementById('btnUndo').disabled = false;
+}
+function undo(){
+  if(!history.length) return toast('没有可撤销的操作');
+  layout = JSON.parse(history.pop());
+  selected = null;
+  commit();
+  toast('已撤销');
+  if(!history.length) document.getElementById('btnUndo').disabled = true;
+}
+
+function draw(){
+  ctx.fillStyle = '#33502f';
+  ctx.fillRect(0,0,SIZE,SIZE);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,.13)';
+  ctx.beginPath();
+  for(let i=1;i<GRID;i++){
+    const p = i*CELL + .5;
+    ctx.moveTo(p,0); ctx.lineTo(p,SIZE);
+    ctx.moveTo(0,p); ctx.lineTo(SIZE,p);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,0,0,.26)';
+  ctx.beginPath();
+  for(let i=5;i<GRID;i+=5){
+    const p = i*CELL + .5;
+    ctx.moveTo(p,0); ctx.lineTo(p,SIZE);
+    ctx.moveTo(0,p); ctx.lineTo(SIZE,p);
+  }
+  ctx.stroke();
+
+  for(const b of layout) drawBuilding(b);
+
+  if(pending && hover.x>=0 && hover.y>=0 && hover.x<GRID && hover.y<GRID){
+    const t = TYPES[pending];
+    const p = anchor(pending,hover.x,hover.y);
+    const bad = overlaps(pending,p.x,p.y,null);
+    ctx.globalAlpha = .55;
+    ctx.fillStyle = bad ? '#c0392b' : t.c;
+    roundRect(p.x*CELL+1, p.y*CELL+1, t.w*CELL-2, t.h*CELL-2, 3);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  if(eraseMode && hover.x>=0 && hover.y>=0 && hover.x<GRID && hover.y<GRID){
+    const hit = hitTest(hover.x,hover.y);
+    if(hit){
+      const t = TYPES[hit.t];
+      ctx.strokeStyle = '#ff6b6b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(hit.x*CELL+1, hit.y*CELL+1, t.w*CELL-2, t.h*CELL-2);
+    }
+  }
+}
+
+function drawBuilding(b){
+  const t = TYPES[b.t];
+  const x = b.x*CELL, y = b.y*CELL, w = t.w*CELL, h = t.h*CELL;
+  const isSel = (b === selected);
+
+  ctx.fillStyle = t.c;
+  roundRect(x+1, y+1, w-2, h-2, t.w===1 ? 2 : 4);
+  ctx.fill();
+
+  ctx.lineWidth = isSel ? 2.5 : 1;
+  ctx.strokeStyle = isSel ? '#f2b544' : 'rgba(0,0,0,.45)';
+  ctx.stroke();
+
+  if(t.s && w >= CELL*2 && h >= CELL*2){
+    const fs = Math.min(11, (w-6)/t.s.length, (h-4)*.5);
+    if(fs >= 6){
+      ctx.fillStyle = 'rgba(255,255,255,.94)';
+      ctx.font = 'bold ' + fs + 'px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t.s, x+w/2, y+h/2);
+    }
+  }
+}
+
+function getCell(e){
+  const r = canvas.getBoundingClientRect();
+  const k = SIZE / r.width;
+  return {
+    x: Math.floor((e.clientX - r.left) * k / CELL),
+    y: Math.floor((e.clientY - r.top ) * k / CELL),
+  };
+}
+
+let pressTimer = null, pressPt = null, longFired = false;
+
+canvas.addEventListener('pointerdown', e => {
+  if(e.button === 2) return;
+  canvas.setPointerCapture(e.pointerId);
+  const p = getCell(e);
+
+  if(eraseMode){
+    const hit = hitTest(p.x, p.y);
+    if(hit){
+      pushHistory();
+      layout.splice(layout.indexOf(hit),1);
+      if(selected === hit) selected = null;
+      haptic(15);
+      commit();
+    }
+    return;
+  }
+
+  if(pending){
+    const a = anchor(pending, p.x, p.y);
+    if(!overlaps(pending, a.x, a.y, null)){
+      pushHistory();
+      layout.push({t:pending, x:a.x, y:a.y});
+      if(pending === 'wall') painting = true;
+      haptic(10);
+      commit();
+    }else{
+      haptic([8,40,8]);
+    }
+    return;
+  }
+
+  const hit = hitTest(p.x, p.y);
+  if(hit){
+    selected = hit;
+    drag = {dx: p.x - hit.x, dy: p.y - hit.y};
+    longFired = false;
+    pressPt = {x:e.clientX, y:e.clientY};
+
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      longFired = true;
+      drag = null;
+      pushHistory();
+      layout.splice(layout.indexOf(hit),1);
+      selected = null;
+      haptic([10,50,10]);
+      commit();
+      toast('已删除 ' + TYPES[hit.t].n);
+    }, 550);
+
+    draw();
+  }else{
+    selected = null;
+    drag = null;
+    draw();
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  const p = getCell(e);
+
+  if(pressPt){
+    const dx = e.clientX - pressPt.x, dy = e.clientY - pressPt.y;
+    if(dx*dx + dy*dy > 64){
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      pressPt = null;
+    }
+  }
+
+  if(drag && selected && !longFired){
+    const t  = TYPES[selected.t];
+    const nx = clamp(p.x - drag.dx, 0, GRID - t.w);
+    const ny = clamp(p.y - drag.dy, 0, GRID - t.h);
+    if(!overlaps(selected.t, nx, ny, selected)){
+      selected.x = nx;
+      selected.y = ny;
+      draw();
+    }
+    return;
+  }
+
+  if(painting && pending === 'wall'){
+    if(p.x>=0 && p.y>=0 && p.x<GRID && p.y<GRID && !overlaps('wall',p.x,p.y,null)){
+      layout.push({t:'wall', x:p.x, y:p.y});
+      commit();
+    }
+    return;
+  }
+
+  hover = p;
+  if(pending || eraseMode) draw();
+});
+
+function endPointer(){
+  clearTimeout(pressTimer);
+  pressTimer = null;
+  pressPt = null;
+  if(drag || painting) commit();
+  drag = null;
+  painting = false;
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+
+canvas.addEventListener('pointerleave', () => {
+  hover = {x:-1,y:-1};
+  if(pending || eraseMode) draw();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const p = getCell(e);
+  const hit = hitTest(p.x, p.y);
+  if(hit){
+    pushHistory();
+    layout.splice(layout.indexOf(hit),1);
+    if(selected === hit) selected = null;
+    commit();
+  }
+});
+
+const paletteEl = document.getElementById('palette');
+
+function buildPalette(){
+  paletteEl.innerHTML = '';
+  for(const [title, keys] of GROUPS){
+    const h = document.createElement('div');
+    h.className = 'gtitle';
+    h.textContent = title;
+    paletteEl.appendChild(h);
+
+    const grid = document.createElement('div');
+    grid.className = 'palette';
+
+    for(const key of keys){
+      const t = TYPES[key];
+      const btn = document.createElement('button');
+      btn.className = 'item';
+      btn.dataset.type = key;
+      btn.innerHTML =
+        '<span class="swatch" style="background:' + t.c + '"></span>' +
+        '<span class="nm">' + t.n + '</span>';
+      btn.addEventListener('click', () => {
+        eraseMode = false;
+        pending = (pending === key) ? null : key;
+        selected = null;
+        updateUI();
+        draw();
+      });
+      grid.appendChild(btn);
+    }
+    paletteEl.appendChild(grid);
+  }
+}
+
+function updateUI(){
+  paletteEl.querySelectorAll('.item').forEach(el => {
+    el.classList.toggle('active', el.dataset.type === pending);
+  });
+  document.getElementById('btnErase').classList.toggle('on', eraseMode);
+}
+
+function commit(){
+  draw();
+  saveLocal();
+}
+
+function saveLocal(){
+  try{ localStorage.setItem('coc_layout_v1', encodeLayout()); }catch(e){}
+}
+
+function loadLocal(){
+  try{
+    const c = localStorage.getItem('coc_layout_v1');
+    if(c){ decodeLayout(c); return true; }
+  }catch(e){}
+  return false;
+}
+
+function encodeLayout(){
+  const s = layout.map(b => IDX[b.t] + ',' + b.x + ',' + b.y).join(';');
+  return btoa(s);
+}
+
+function decodeLayout(code){
+  const s = atob(String(code).trim());
+  if(!s){ layout = []; return true; }
+  layout = s.split(';').map(part => {
+    const [i,x,y] = part.split(',').map(Number);
+    return {t: KEYS[i], x: x, y: y};
+  }).filter(b => TYPES[b.t] && Number.isFinite(b.x) && Number.isFinite(b.y));
+  return true;
+}
+
+const drawer   = document.getElementById('drawer');
+const mask     = document.getElementById('mask');
+const codeEl   = document.getElementById('code');
+const toastEl  = document.getElementById('toast');
+let toastTimer = null;
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toastEl.classList.remove('show'), 1500);
+}
+
+function openDrawer(title){
+  document.getElementById('drawerTitle').textContent = title;
+  drawer.classList.add('open');
+  mask.classList.add('show');
+}
+function closeDrawer(){
+  drawer.classList.remove('open');
+  mask.classList.remove('show');
+}
+
+mask.addEventListener('click', closeDrawer);
+document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+
+document.getElementById('btnCopy').addEventListener('click', async () => {
+  const code = encodeLayout();
+  codeEl.value = code;
+  try{
+    await navigator.clipboard.writeText(code);
+    toast('已复制到剪贴板 ✓');
+  }catch(err){
+    openDrawer('长按选中下方文本复制');
+    codeEl.focus();
+    codeEl.select();
+    toast('请手动复制');
+  }
+});
+
+document.getElementById('btnImport').addEventListener('click', () => {
+  codeEl.value = '';
+  openDrawer('粘贴阵型码');
+  setTimeout(()=> codeEl.focus(), 260);
+});
+
+document.getElementById('btnDoImport').addEventListener('click', () => {
+  const code = codeEl.value.trim();
+  if(!code) return toast('先粘贴阵型码');
+  try{
+    pushHistory();
+    decodeLayout(code);
+    selected = null;
+    pending  = null;
+    eraseMode= false;
+    updateUI();
+    commit();
+    closeDrawer();
+    toast('导入成功 ✓');
+    haptic(20);
+  }catch(err){
+    toast('阵型码无效 ✗');
+    haptic([10,60,10]);
+  }
+});
+
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnUndo').disabled = true;
+
+document.getElementById('btnErase').addEventListener('click', () => {
+  eraseMode = !eraseMode;
+  if(eraseMode) pending = null;
+  updateUI();
+  draw();
+  toast(eraseMode ? '橡皮擦：点击建筑删除' : '已退出橡皮擦');
+});
+
+document.getElementById('btnSample').addEventListener('click', () => {
+  pushHistory();
+  layout = sampleLayout();
+  selected = null;
+  commit();
+  toast('已载入示例阵型');
+});
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  if(!layout.length) return toast('已经是空的');
+  if(!confirm('确定清空当前阵型？')) return;
+  pushHistory();
+  layout = [];
+  selected = null;
+  commit();
+  toast('已清空');
+});
+
+function sampleLayout(){
+  const out = [];
+  const put = (t,x,y)=> out.push({t,x,y});
+  const C = 22;
+
+  put('th', C-2, C-2);
+
+  put('airdef', C-11, C-11);
+  put('airdef', C+ 8, C-11);
+  put('airdef', C-11, C+ 8);
+  put('airdef', C+ 8, C+ 8);
+
+  put('cc', C-2, C+6);
+
+  put('mortar', C-8, C-8);
+  put('mortar', C+5, C-8);
+  put('mortar', C-8, C+5);
+  put('mortar', C+5, C+5);
+
+  put('goldstor', C-6, C-2);
+  put('elixstor', C+3, C-2);
+  put('darkstor', C-2, C-8);
+
+  for(let i=0;i<8;i++){
+    const a = i/8 * Math.PI * 2;
+    put('archer',
+      Math.round(C + Math.cos(a)*9 - 1.5),
+      Math.round(C + Math.sin(a)*9 - 1.5));
+  }
+  for(let i=0;i<8;i++){
+    const a = (i+0.5)/8 * Math.PI * 2;
+    put('cannon',
+      Math.round(C + Math.cos(a)*13 - 1.5),
+      Math.round(C + Math.sin(a)*13 - 1.5));
+  }
+
+  put('goldmine', 4, 4);   put('goldmine', 36, 4);
+  put('elixcoll', 4, 36);  put('elixcoll', 36, 36);
+  put('drill', 4, 20);     put('drill', 36, 20);
+
+  put('barracks', 20, 4);
+  put('train', 20, 36);
+  put('lab', 2, 20);
+
+  put('builder', 1, 1);
+  put('builder', 40, 1);
+  put('builder', 1, 40);
+  put('builder', 40, 40);
+
+  const R = 18;
+  for(let x=C-R; x<=C+R; x++){
+    put('wall', x, C-R);
+    put('wall', x, C+R);
+  }
+  for(let y=C-R+1; y<C+R; y++){
+    put('wall', C-R, y);
+    put('wall', C+R, y);
+  }
+  return out;
+}
+
+window.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    pending = null; selected = null; eraseMode = false;
+    updateUI(); draw(); closeDrawer();
+  }
+  if((e.key === 'Delete' || e.key === 'Backspace') && selected){
+    if(document.activeElement === codeEl) return;
+    pushHistory();
+    layout.splice(layout.indexOf(selected),1);
+    selected = null;
+    commit();
+  }
+  if((e.ctrlKey || e.metaKey) && e.key === 'z'){ e.preventDefault(); undo(); }
+});
+
+let resizeTimer = null;
+function onResize(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(fitCanvas, 120);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+
+document.addEventListener('gesturestart', e => e.preventDefault());
+let lastTap = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if(now - lastTap < 300) e.preventDefault();
+  lastTap = now;
+}, {passive:false});
+
+buildPalette();
+updateUI();
+if(!loadLocal()) layout = sampleLayout();
+fitCanvas();
+commit();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+})();
+</script>
+</body>
+</html>

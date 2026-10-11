@@ -1,0 +1,26 @@
+{
+  "name": "部落阵型编辑器",
+  "short_name": "阵型编辑器",
+  "description": "离线可用的部落冲突阵型摆放与复制码工具",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1410",
+  "theme_color": "#0e1410",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
